@@ -73,7 +73,22 @@ func main() {
 	fmt.Fprintln(out, "| Test URL | Remaining Outputs (No Exceptions) |")
 	fmt.Fprintln(out, "| :--- | :--- |")
 
+	// Remove Duplicate links. Not useful.
+
+	// Initialize a map to track URLs we've already processed
+	seenUrls := make(map[string]struct{})
+	newRemoveExceptionsList := []*SippyTestOutputProcessed{} // assuming Exception is your type
+
 	for _, item := range removeExceptionsList {
+		if _, exists := seenUrls[item.Url]; !exists {
+			// If the URL hasn't been seen, add it to the results
+			newRemoveExceptionsList = append(newRemoveExceptionsList, item)
+			// Mark this URL as seen
+			seenUrls[item.Url] = struct{}{}
+		}
+	}
+
+	for _, item := range newRemoveExceptionsList {
 		// Join multiple outputs with <br> so they appear on new lines within the same Markdown cell
 		joinedOutputs := strings.Join(item.Outputs, "<br>")
 
