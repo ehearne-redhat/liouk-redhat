@@ -67,32 +67,79 @@ func main() {
 		sippyTestOutputsProcessed := sippyTestOutputsProcessed(sippyTestOutputs)
 		removeExceptionsList = removeExceptions(sippyTestOutputsProcessed)
 	}
-	fmt.Printf("found %d tests in total without exceptions\n", len(removeExceptionsList))
+
+	// Remove Duplicate links. Not useful.
+	seenUrls := make(map[string]struct{})
+	newRemoveExceptionsList := []*SippyTestOutputProcessed{}
+
+	var ManagedServiceNamespaces = map[string]struct{}{
+		"openshift-addon-operator":                 {},
+		"openshift-aqua":                           {},
+		"openshift-aws-vpce-operator":              {},
+		"openshift-backplane":                      {},
+		"openshift-backplane-cee":                  {},
+		"openshift-backplane-csa":                  {},
+		"openshift-backplane-cse":                  {},
+		"openshift-backplane-csm":                  {},
+		"openshift-backplane-managed-scripts":      {},
+		"openshift-backplane-mcs-tier-two":         {},
+		"openshift-backplane-mobb":                 {},
+		"openshift-backplane-sdcicd":               {},
+		"openshift-backplane-srep":                 {},
+		"openshift-backplane-tam":                  {},
+		"openshift-cloud-ingress-operator":         {},
+		"openshift-codeready-workspaces":           {},
+		"openshift-compliance":                     {},
+		"openshift-compliance-monkey":              {},
+		"openshift-container-security":             {},
+		"openshift-custom-domains-operator":        {},
+		"openshift-customer-monitoring":            {},
+		"openshift-deployment-validation-operator": {},
+		"openshift-file-integrity":                 {},
+		"openshift-logging":                        {},
+		"openshift-managed-node-metadata-operator": {},
+		"openshift-managed-upgrade-operator":       {},
+		"openshift-marketplace":                    {},
+		"openshift-must-gather-operator":           {},
+		"openshift-nmstate":                        {},
+		"openshift-observability-operator":         {},
+		"openshift-ocm-agent-operator":             {},
+		"openshift-operators-redhat":               {},
+		"openshift-osd-metrics":                    {},
+		"openshift-package-operator":               {},
+		"openshift-rbac-permissions":               {},
+		"openshift-route-monitor-operator":         {},
+		"openshift-scanning":                       {},
+		"openshift-security":                       {},
+		"openshift-splunk-forwarder-operator":      {},
+		"openshift-sre-pruning":                    {},
+		"openshift-suricata":                       {},
+		"openshift-validation-webhook":             {},
+		"openshift-velero":                         {},
+	}
+
+	for _, item := range removeExceptionsList {
+		prefix := "[Monitor:no-default-service-account-operator-checker][sig-auth] all pods in "
+		strippedNS := strings.Split(strings.TrimPrefix(item.Outputs[0], prefix), " namespace")[0]
+
+		_, isManaged := ManagedServiceNamespaces[strippedNS]
+		_, alreadySeen := seenUrls[item.Url]
+
+		if !isManaged && !alreadySeen {
+			newRemoveExceptionsList = append(newRemoveExceptionsList, item)
+			seenUrls[item.Url] = struct{}{}
+		}
+	}
+
+	fmt.Printf("found %d tests in total without exceptions\n", len(newRemoveExceptionsList))
 
 	// Print Markdown Table
 	fmt.Fprintln(out, "| Test URL | Remaining Outputs (No Exceptions) |")
 	fmt.Fprintln(out, "| :--- | :--- |")
 
-	// Remove Duplicate links. Not useful.
-
-	// Initialize a map to track URLs we've already processed
-	seenUrls := make(map[string]struct{})
-	newRemoveExceptionsList := []*SippyTestOutputProcessed{} // assuming Exception is your type
-
-	for _, item := range removeExceptionsList {
-		if _, exists := seenUrls[item.Url]; !exists {
-			// If the URL hasn't been seen, add it to the results
-			newRemoveExceptionsList = append(newRemoveExceptionsList, item)
-			// Mark this URL as seen
-			seenUrls[item.Url] = struct{}{}
-		}
-	}
-
 	for _, item := range newRemoveExceptionsList {
-		// Join multiple outputs with <br> so they appear on new lines within the same Markdown cell
 		joinedOutputs := strings.Join(item.Outputs, "<br>")
 
-		// Clean up any pipes in the text so they don't break the Markdown table structure
 		safeOutputs := strings.ReplaceAll(joinedOutputs, "|", "\\|")
 
 		fmt.Fprintf(out, "| %s | %s |\n", item.Url, safeOutputs)
